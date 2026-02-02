@@ -27,9 +27,14 @@ class CPDataset(data.Dataset):
         self.fine_width = opt.fine_width
         self.radius = opt.radius
         self.data_path = osp.join(opt.dataroot, opt.datamode)
+        # Transform for RGB images (3 channels)
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        # Transform for grayscale images (1 channel) - for model input
+        self.transform_1ch = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))])
 
         # load data list
         im_names = []
@@ -129,16 +134,15 @@ class CPDataset(data.Dataset):
 
         # shape downsample
         parse_shape_ori = Image.fromarray((parse_shape*255).astype(np.uint8))
-        # Convert to RGB to match transform normalization (3 channels)
-        parse_shape_ori = parse_shape_ori.convert('RGB')
         parse_shape = parse_shape_ori.resize(
             (self.fine_width//16, self.fine_height//16), Image.BILINEAR)
         parse_shape = parse_shape.resize(
             (self.fine_width, self.fine_height), Image.BILINEAR)
         parse_shape_ori = parse_shape_ori.resize(
             (self.fine_width, self.fine_height), Image.BILINEAR)
-        shape_ori = self.transform(parse_shape_ori)  # [-1,1]
-        shape = self.transform(parse_shape)  # [-1,1]
+        # Keep as 1-channel for model input
+        shape_ori = self.transform_1ch(parse_shape_ori)  # [-1,1], 1 channel
+        shape = self.transform_1ch(parse_shape)  # [-1,1], 1 channel
         phead = torch.from_numpy(parse_head)  # [0,1]
         # phand = torch.from_numpy(parse_hand)  # [0,1]
         pcm = torch.from_numpy(parse_cloth)  # [0,1]
@@ -168,22 +172,20 @@ class CPDataset(data.Dataset):
             if pointx > 1 and pointy > 1:
                 draw.rectangle((pointx-r, pointy-r, pointx +
                                 r, pointy+r), 'white', 'white')
-                pose_draw.rectangle(
-                    (pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
-            one_map = one_map.convert('RGB')  # Convert to RGB for 3-channel normalization
-            one_map = self.transform(one_map)
+            pose_draw.rectangle(
+                (pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
+            # Keep as 1-channel grayscale for model input
+            one_map = self.transform_1ch(one_map)
             pose_map[i] = one_map[0]
 
-        # just for visualization
-        im_pose = im_pose.convert('RGB')  # Convert to RGB for 3-channel normalization
-        im_pose = self.transform(im_pose)
-
-        # cloth-agnostic representation
+        # just for visualization - convert to RGB
+        im_pose = im_pose.convert('RGB')
+        im_pose = self.transform(im_pose)        # cloth-agnostic representation
         agnostic = torch.cat([shape, im_h, pose_map], 0)
 
         if self.stage == 'GMM':
             im_g = Image.open('grid.png')
-            im_g = im_g.convert('RGB')  # Ensure RGB for 3-channel normalization
+            # Grid is already RGB, use 3-channel transform
             im_g = self.transform(im_g)
         else:
             im_g = ''
