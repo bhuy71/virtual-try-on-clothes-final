@@ -170,10 +170,12 @@ class CPDataset(data.Dataset):
                                 r, pointy+r), 'white', 'white')
                 pose_draw.rectangle(
                     (pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
+            one_map = one_map.convert('RGB')  # Convert to RGB for 3-channel normalization
             one_map = self.transform(one_map)
             pose_map[i] = one_map[0]
 
         # just for visualization
+        im_pose = im_pose.convert('RGB')  # Convert to RGB for 3-channel normalization
         im_pose = self.transform(im_pose)
 
         # cloth-agnostic representation
@@ -181,6 +183,7 @@ class CPDataset(data.Dataset):
 
         if self.stage == 'GMM':
             im_g = Image.open('grid.png')
+            im_g = im_g.convert('RGB')  # Ensure RGB for 3-channel normalization
             im_g = self.transform(im_g)
         else:
             im_g = ''
