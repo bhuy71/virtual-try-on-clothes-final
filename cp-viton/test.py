@@ -24,6 +24,7 @@ def get_opt():
     parser.add_argument('-b', '--batch-size', type=int, default=4)
 
     parser.add_argument("--dataroot", default="data")
+    parser.add_argument("--dataroot_original", default="", help="original dataset path for TOM stage (optional)")
 
     # parser.add_argument("--datamode", default="train")
     parser.add_argument("--datamode", default="test")

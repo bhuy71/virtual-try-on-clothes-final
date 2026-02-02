@@ -27,7 +27,13 @@ class CPDataset(data.Dataset):
         self.fine_width = opt.fine_width
         self.radius = opt.radius
         self.data_path = osp.join(opt.dataroot, opt.datamode)
-        # Transform for RGB images (3 channels)
+        
+        # For TOM stage: use separate path for original dataset if provided
+        if hasattr(opt, 'dataroot_original') and opt.dataroot_original:
+            self.data_path_original = osp.join(opt.dataroot_original, opt.datamode)
+        else:
+            self.data_path_original = self.data_path
+        
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -58,8 +64,9 @@ class CPDataset(data.Dataset):
             c = Image.open(osp.join(self.data_path, 'cloth', c_name))
             cm = Image.open(osp.join(self.data_path, 'cloth-mask', c_name)).convert('L')
         else:
-            c = Image.open(osp.join(self.data_path, 'warp-cloth', im_name))    # c_name, if that is used when saved
-            cm = Image.open(osp.join(self.data_path, 'warp-mask', im_name)).convert('L')    # c_name, if that is used when saved
+            # TOM: load warp-cloth from GMM result path
+            c = Image.open(osp.join(self.data_path, 'warp-cloth', im_name))
+            cm = Image.open(osp.join(self.data_path, 'warp-mask', im_name)).convert('L')
 
         c = self.transform(c)  # [-1,1]
         cm_array = np.array(cm)
@@ -67,8 +74,8 @@ class CPDataset(data.Dataset):
         cm = torch.from_numpy(cm_array)  # [0,1]
         cm.unsqueeze_(0)
 
-        # person image
-        im = Image.open(osp.join(self.data_path, 'image', im_name))
+        # person image - use original dataset path for TOM
+        im = Image.open(osp.join(self.data_path_original, 'image', im_name))
         im = self.transform(im)  # [-1,1]
 
         """
@@ -98,14 +105,14 @@ class CPDataset(data.Dataset):
          ]
          """
 
-        # load parsing image
+        # load parsing image - use original dataset path
         parse_name = im_name.replace('.jpg', '.png')
         im_parse = Image.open(
-            # osp.join(self.data_path, 'image-parse', parse_name)).convert('L')
-            osp.join(self.data_path, 'image-parse-new', parse_name)).convert('L')   # updated new segmentation
+            # osp.join(self.data_path_original, 'image-parse', parse_name)).convert('L')
+            osp.join(self.data_path_original, 'image-parse-new', parse_name)).convert('L')   # updated new segmentation
         parse_array = np.array(im_parse)
         im_mask = Image.open(
-            osp.join(self.data_path, 'image-mask', parse_name)).convert('L')
+            osp.join(self.data_path_original, 'image-mask', parse_name)).convert('L')
         mask_array = np.array(im_mask)
 
         # parse_shape = (parse_array > 0).astype(np.float32)  # CP-VTON body shape
@@ -151,9 +158,9 @@ class CPDataset(data.Dataset):
         im_c = im * pcm + (1 - pcm)  # [-1,1], fill 1 for other parts
         im_h = im * phead - (1 - phead)  # [-1,1], fill -1 for other parts
 
-        # load pose points
+        # load pose points - use original dataset path
         pose_name = im_name.replace('.jpg', '_keypoints.json')
-        with open(osp.join(self.data_path, 'pose', pose_name), 'r') as f:
+        with open(osp.join(self.data_path_original, 'pose', pose_name), 'r') as f:
             pose_label = json.load(f)
             pose_data = pose_label['people'][0]['pose_keypoints']
             pose_data = np.array(pose_data)
