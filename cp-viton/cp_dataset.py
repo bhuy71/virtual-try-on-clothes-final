@@ -42,10 +42,14 @@ class CPDataset(data.Dataset):
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,))])
 
-        # load data list
+        # load data list - try dataroot first, then current directory
         im_names = []
         c_names = []
-        with open(osp.join(opt.dataroot, opt.data_list), 'r') as f:
+        data_list_path = osp.join(opt.dataroot, opt.data_list)
+        if not osp.exists(data_list_path):
+            data_list_path = opt.data_list  # Try current working directory
+        
+        with open(data_list_path, 'r') as f:
             for line in f.readlines():
                 im_name, c_name = line.strip().split()
                 im_names.append(im_name)
