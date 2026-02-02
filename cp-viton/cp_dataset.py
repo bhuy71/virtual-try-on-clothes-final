@@ -129,6 +129,8 @@ class CPDataset(data.Dataset):
 
         # shape downsample
         parse_shape_ori = Image.fromarray((parse_shape*255).astype(np.uint8))
+        # Convert to RGB to match transform normalization (3 channels)
+        parse_shape_ori = parse_shape_ori.convert('RGB')
         parse_shape = parse_shape_ori.resize(
             (self.fine_width//16, self.fine_height//16), Image.BILINEAR)
         parse_shape = parse_shape.resize(
